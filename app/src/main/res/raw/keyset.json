@@ -1,0 +1,15 @@
+{
+  "primaryKeyId": 1,
+  "key": [
+    {
+      "keyData": {
+        "typeUrl": "type.googleapis.com/google.crypto.tink.AesGcmKey",
+        "value": "GgEYAg==",
+        "keyMaterialType": "SYMMETRIC"
+      },
+      "outputPrefixType": "TINK",
+      "keyId": 1,
+      "status": "ENABLED"
+    }
+  ]
+}
