@@ -7,22 +7,20 @@ import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
-import com.google.crypto.tink.Aead
-import com.google.crypto.tink.CleartextKeysetHandle
-import com.google.crypto.tink.JsonKeysetReader
-import com.google.crypto.tink.JsonKeysetWriter
-import com.google.crypto.tink.KeysetHandle
 import com.google.crypto.tink.aead.AeadConfig
-import com.google.crypto.tink.aead.AeadFactory
-import com.google.crypto.tink.aead.AeadKeyTemplates
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
+import com.google.crypto.tink.subtle.AesGcmJce
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.nio.charset.Charset
+import java.security.KeyFactory
+import java.security.KeyPair
+import java.security.KeyPairGenerator
+import java.security.PrivateKey
+import java.security.PublicKey
+import java.security.spec.X509EncodedKeySpec
 import java.util.UUID
+import javax.crypto.KeyAgreement
 import kotlin.math.min
 
 
@@ -61,22 +59,60 @@ class BluetoothController(
     // propiedad de escucha de datos Bluetooth
     private var bluetoothDataListener: BluetoothDataListener? = null
 
-    // Conjunto de claves para cifrar y descifrar los datos
-    private var keysetHandle: KeysetHandle
+    // par de claves cliente
+    val aliceKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
 
-    // Instancia de AEAD para cifrar y descifrar los datos
-    private var aead: Aead
+    // par de claves servidor
+    val bobKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
 
+    val aliceKeyPair: KeyPair
+
+    val bobKeyPair: KeyPair
+
+    val alicePrivateKey: PrivateKey
+
+    val bobPublicKey: PublicKey
+
+    var sharedSecretAlice: ByteArray? = null
+
+    var sharedSecretBob: ByteArray? = null
+
+    val bobPrivateKey: PrivateKey
+
+    val alicePublicKey: PublicKey
+
+    val bobKeyAgreement: KeyAgreement
+
+    val aliceKeyAgreement: KeyAgreement
+
+    var keyset128:  List<Byte> = emptyList()
+
+    var aead: AesGcmJce? = null
 
     init {
-        updatePairedDevices()
+        aliceKpg.initialize(256) // Key size in bits
+        aliceKeyPair = aliceKpg.generateKeyPair()
 
-        // Registra la configuración de Tink
+        bobKpg.initialize(256) // Key size in bits
+        bobKeyPair = bobKpg.generateKeyPair()
+
+        // Alice's private key and Bob's public key
+        alicePrivateKey = aliceKeyPair.private
+        bobPublicKey = bobKeyPair.public
+
+        // Bob performs the key agreement
+        bobPrivateKey= bobKeyPair.private
+        alicePublicKey= aliceKeyPair.public
+
+        bobKeyAgreement = KeyAgreement.getInstance("ECDH")
+        bobKeyAgreement.init(bobPrivateKey)
+
+        aliceKeyAgreement = KeyAgreement.getInstance("ECDH")
+        aliceKeyAgreement.init(alicePrivateKey)
+
         AeadConfig.register()
-        keysetHandle = KeysetHandle.generateNew(AeadKeyTemplates.AES256_GCM)
-        aead = AeadFactory.getPrimitive(keysetHandle)
 
-
+        updatePairedDevices()
     }
 
     // método para actualizar la lista de dispositivos Bluetooth emparejados.
@@ -104,9 +140,28 @@ class BluetoothController(
         while(shouldLoop){
             try {
                 bluetoothServerSocket?.accept()?.let { socket ->
+
                     bluetoothServerSocket?.close()
                     bluetoothServerSocket = null
                     bluetoothClientSocket = socket
+                    bluetoothClientSocket?.outputStream?.apply {
+                        // leer el tamaño de la clave pública del cliente
+                        val bobPublicKeySizeBuffer = ByteArray(4)
+                        bluetoothClientSocket?.inputStream?.read(bobPublicKeySizeBuffer)
+                        // obtener la clave pública del cliente
+                        val bobPublicKeyBuffer = ByteArray(ByteBuffer.wrap(bobPublicKeySizeBuffer).int)
+                        bluetoothClientSocket?.inputStream?.read(bobPublicKeyBuffer)
+                        // convertir la clave pública del cliente en un objeto PublicKey
+                        val bobPublicKey = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(bobPublicKeyBuffer))
+                        // generar la clave compartida
+                        aliceKeyAgreement.doPhase(bobPublicKey, true)
+                        sharedSecretAlice = aliceKeyAgreement.generateSecret()
+                        // enviar el tamañp de la clave pública del servidor al cliente
+                        write(ByteBuffer.allocate(4).putInt(alicePublicKey.encoded.size).array())
+                        // enviar la clave pública del servidor al cliente
+                        write(alicePublicKey.encoded)
+
+                    }
                     shouldLoop = false
                     Toast.makeText(context, "Conexión con cliente establecida", Toast.LENGTH_SHORT).show()
                 }
@@ -116,19 +171,6 @@ class BluetoothController(
                     val bufferSize = 4096 // Tamaño del buffer en bytes
                     while (true) {
                         try {
-                            // Leer el tamaño del keysetString que pasó el cliente
-                            val keysetStringSizeBuffer = ByteArray(4)
-                            bluetoothClientSocket?.inputStream?.read(keysetStringSizeBuffer)
-                            val keysetStringSize = ByteBuffer.wrap(keysetStringSizeBuffer).int
-                            // Leer el keysetString que pasó el cliente
-                            val keysetStringBuffer = ByteArray(keysetStringSize)
-                            bluetoothClientSocket?.inputStream?.read(keysetStringBuffer)
-                            val keysetString = String(keysetStringBuffer)
-
-                            val inputStream = ByteArrayInputStream(keysetString.toByteArray(Charset.defaultCharset()))
-                            val receivedKeysetHandle = CleartextKeysetHandle.read(JsonKeysetReader.withInputStream(inputStream))
-
-
                             // Leer el tamaño nombre del archivo
                             val fileNameSizeBuffer = ByteArray(4)
                             bluetoothClientSocket?.inputStream?.read(fileNameSizeBuffer)
@@ -144,18 +186,30 @@ class BluetoothController(
                             val fileSize = ByteBuffer.wrap(fileSizeBuffer).int
                             var bytes: Int
                             var remainingBytes = fileSize
-                            val fileBuffer = ByteArray(size = bufferSize)
+//                            val fileBuffer = ByteArray(size = bufferSize)
+                            val dataBuffer = ByteArray(min(remainingBytes, bufferSize))
                             while (remainingBytes > 0){
-                                bytes = bluetoothClientSocket?.inputStream?.read(fileBuffer,0,min(remainingBytes,bufferSize)) ?: -1
-                                    if (bytes == -1) {
+//                                bytes = bluetoothClientSocket?.inputStream?.read(fileBuffer,0,min(remainingBytes,bufferSize)) ?: -1
+                                bytes = bluetoothClientSocket?.inputStream?.read(dataBuffer) ?: -1
+                                if (bytes == -1) {
                                     break
                                 }
                                 remainingBytes -= bytes
-                                // Descifrar los datos recibidos
-                                val decryptedData = receivedKeysetHandle.getPrimitive(Aead::class.java).decrypt(fileBuffer, null)
+
+                                // Desencriptar el archivo
+                                val keyset128 = sharedSecretAlice?.take(16)
+                                aead = AesGcmJce(keyset128?.toByteArray())
+                                val decrypted = aead!!.decrypt(dataBuffer,null)
+                                // Guardar el archivo
+                                if (decrypted != null) {
+                                    saveFile(context, decrypted, fileName, decrypted?.size ?: 0)
+                                }else{
+                                    Log.e("Bluetooth", "Error al desencriptar el archivo")
+                                }
+
                                 // Construir y guardar el archivo con los datos recibidos
-                                saveFile(context, decryptedData, fileName, bytes)
-//                                saveFile(context, decryptedData, fileName, decryptedData.size)
+//                                saveFile(context, fileBuffer, fileName, bytes)
+//                                saveFile(context, ciphertext, fileName, ciphertext.size)
                             }
                         } catch (e: IOException) {
                             // Error al leer los datos
@@ -178,11 +232,27 @@ class BluetoothController(
         bluetoothClientSocket = bluetoothAdapter
             ?.getRemoteDevice(device.address)
             ?.createRfcommSocketToServiceRecord(
-            UUID.fromString(SERVICE_UUID)
-        )
+                UUID.fromString(SERVICE_UUID)
+            )
         bluetoothClientSocket?.let { socket ->
             try {
                 socket.connect()
+                // enviar el tamaño de la clave pública del servidor
+                socket.outputStream?.write(ByteBuffer.allocate(4).putInt(bobPublicKey.encoded.size).array())
+                // enviar la clave pública del servidor
+                socket.outputStream?.write(bobPublicKey.encoded)
+                // leer el tamaño de la clave pública del cliente
+                val alicePublicKeySizeBuffer = ByteArray(4)
+                socket.inputStream?.read(alicePublicKeySizeBuffer)
+                // obtener la clave pública del cliente
+                val alicePublicKeyBuffer = ByteArray(ByteBuffer.wrap(alicePublicKeySizeBuffer).int)
+                socket.inputStream?.read(alicePublicKeyBuffer)
+                // convertir la clave pública del cliente en un objeto PublicKey
+                val alicePublicKey = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(alicePublicKeyBuffer))
+                // generar la clave compartida
+                bobKeyAgreement.doPhase(alicePublicKey, true)
+                sharedSecretBob = bobKeyAgreement.generateSecret()
+
                 connectionListener.onConnectionSuccess()
             } catch (e: IOException) {
                 socket.close()
@@ -209,16 +279,6 @@ class BluetoothController(
     fun sendData(data: ByteArray, fileName: String) {
         try {
             bluetoothClientSocket?.outputStream?.apply {
-                val outputStream = ByteArrayOutputStream()
-                CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(outputStream))
-                val keysetString = String(outputStream.toByteArray(), Charset.defaultCharset())
-
-                // Enviar el tamaño del keysetString
-                write(ByteBuffer.allocate(4).putInt(keysetString.toByteArray().size).array())
-                // Enviar el keysetString
-                write(keysetString.toByteArray())
-
-                // mostrar el nombre del archivo que se está enviando
                 bluetoothDataListener?.onDataReceived("Enviando archivo: $fileName")
 
                 // Enviar el tamaño nombre del archivo
@@ -227,22 +287,27 @@ class BluetoothController(
                 // Enviar el nombre del archivo
                 write(fileName.toByteArray())
 
+                // cifrar los datos con la clave compartida
+                val keyset128 = sharedSecretBob?.take(16)
+                aead = AesGcmJce(keyset128?.toByteArray())
+                val ciphertext = aead!!.encrypt(data, null)
+
                 // Enviar el tamaño del archivo
-                write(ByteBuffer.allocate(4).putInt(data.size).array())
-                // cifrar data antes de enviar
-                val encryptedData = encryptData(data)
-                write(encryptedData) // Enviar el archivo
+                write(ByteBuffer.allocate(4).putInt(ciphertext.size).array())
+                // Enviar el archivo
+                write(ciphertext)
+
+
+//                // Enviar el tamaño del archivo
+//                write(ByteBuffer.allocate(4).putInt(data.size).array())
+//                // Enviar el archivo
+//                write(data)
             }
         } catch (e: IOException) {
             Log.e("Bluetooth", "Error al enviar los datos en sendData", e)
         }
     }
 
-    private fun encryptData(data: ByteArray): ByteArray {
-        val aead = keysetHandle.getPrimitive(Aead::class.java)
-        val ciphertext = aead.encrypt(data, null)
-        return ciphertext
-    }
 
     // Construir y guardar el archivo con los datos recibidos
     private fun saveFile(context: Context, data: ByteArray, fileName: String, bytes: Int){
