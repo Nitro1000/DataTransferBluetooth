@@ -7,13 +7,6 @@ import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
-import com.google.crypto.tink.Aead
-import com.google.crypto.tink.AeadFactory
-import com.google.crypto.tink.KeysetHandle
-import com.google.crypto.tink.aead.AeadKeyTemplates
-import com.google.crypto.tink.config.TinkConfig
-import com.google.crypto.tink.integration.android.AndroidKeysetManager
-import java.security.GeneralSecurityException
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -56,39 +49,10 @@ class BluetoothController(
     // propiedad de escucha de datos Bluetooth
     private var bluetoothDataListener: BluetoothDataListener? = null
 
-    // Conjunto de claves para cifrar y descifrar los datos
-//    private var keysetHandle: KeysetHandle
-
-    // Instancia de AEAD para cifrar y descifrar los datos
-    private var aead: Aead
-
 
     init {
         updatePairedDevices()
 
-        // Registra la configuración de Tink
-        TinkConfig.register()
-
-        // Genera o carga el conjunto de claves en función de si ya existe o no
-        val keysetManager = AndroidKeysetManager.Builder()
-            .withSharedPref(context, "keyset_prefs", "keyset")
-            .withKeyTemplate(AeadKeyTemplates.AES256_GCM)
-            .withMasterKeyUri("android-keystore://keyset_id")
-            .build()
-
-        if (!keysetManager.isKeysetLoaded) {
-            keysetManager.generateNewMasterKey()
-        }
-
-        try {
-            keysetManager.getPrimitive("android-keystore://keyset_id", Aead::class.java)?.let { primitive ->
-                aead = primitive
-            } ?: throw GeneralSecurityException("Error loading keyset")
-        } catch (e: GeneralSecurityException) {
-            // Manejar el error en caso de que ocurra
-            aead = AeadFactory.getPrimitive(AeadKeyTemplates.AES256_GCM)
-            Log.e("Bluetooth", "Error al cargar el conjunto de claves: ${e.message}")
-        }
     }
 
     // método para actualizar la lista de dispositivos Bluetooth emparejados.
