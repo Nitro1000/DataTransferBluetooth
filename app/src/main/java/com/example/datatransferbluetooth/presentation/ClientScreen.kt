@@ -1,5 +1,7 @@
 package com.example.datatransferbluetooth.presentation
 
+import android.content.Context
+import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,7 +17,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,8 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.datatransferbluetooth.BluetoothController
 import com.example.datatransferbluetooth.BluetoothDeviceModel
-import java.security.KeyPairGenerator
-import java.security.spec.X509EncodedKeySpec
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,46 +35,36 @@ fun ClientScreen(
     modifier: Modifier = Modifier,
     bluetoothController: BluetoothController
 ) {
-
-    val messageState = remember { mutableStateOf("") }
-
     val context = bluetoothController.context
 
-    val uriFile = remember { mutableStateOf("") }
+    val selectedFileUri = remember { mutableStateOf("") }
+    val selectedFileName = remember { mutableStateOf("") }
 
-    // selector de archivos
-    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { result ->
+    // Selector de archivos
+    val filePickerLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { result ->
         val uri = result ?: return@rememberLauncherForActivityResult
-        uriFile.value = uri.toString()
+        selectedFileUri.value = uri.toString()
 
-        val fileName = uri.let { uri ->
+        uri.let { uri ->
             val cursor = context.contentResolver.query(uri, null, null, null, null)
             cursor?.use {
                 if (it.moveToFirst()) {
-                    val displayName = it.getString(it.getColumnIndex(OpenableColumns.DISPLAY_NAME))
-                    displayName
+                    val displayName = it.getString(it.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+                    selectedFileName.value = displayName
                 } else {
+                    Toast.makeText(context, "No se pudo obtener el nombre del archivo", Toast.LENGTH_SHORT).show()
                     null
                 }
             }
         }
-        messageState.value = fileName ?: ""
 
-        val inputStream = context.contentResolver.openInputStream(uri)
-        val bytes = inputStream?.readBytes()
-        inputStream?.close()
-        bytes?.let { byteArray ->
-            if (fileName != null) {
-                bluetoothController.sendData(byteArray, fileName)
-            }else {
-                Toast.makeText(context, "No se pudo enviar el archivo", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     Scaffold(
         topBar = {
-            CustomAppBar(navigationIcon = Icons.Filled.ArrowBack) {
+            CustomAppBar(
+                title = "Selecciona un archivo",
+                navigationIcon = Icons.Filled.ArrowBack) {
                 navController.navigate(route = "pairedDevices") {
                     popUpTo(route = "pairedDevices")
                 }
@@ -84,8 +73,6 @@ fun ClientScreen(
         content = { padding ->
             Surface(color = MaterialTheme.colorScheme.background) {
                 Column(modifier = Modifier.padding(padding)) {
-
-                    // Nombre del dispositivo al que se conecta
                     Text(
                         text = "Conectado a: ${device.name}",
                         modifier = Modifier
@@ -93,36 +80,50 @@ fun ClientScreen(
                             .padding(16.dp)
                     )
 
-                    // Campo de texto y botón para enviar datos al servidor
-                    TextField(
-                        value = messageState.value,
-                        onValueChange = { value -> messageState.value = value },
+                    Text(
+                        text = selectedFileName.value,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
                     )
-                    // Botón para seleccionar un archivo
+
                     Button(
-                        onClick = {
-                            // contentActivityResultLauncher.launch("application/*")
-                            launcher.launch("application/*")
-                        },
+                        onClick = { filePickerLauncher.launch("application/*") },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
                     ) {
                         Text(text = "Seleccionar archivo")
                     }
+                    if (selectedFileUri.value.isNotEmpty()) {
+                        Button(
+                            onClick = {
+                                val uri = selectedFileUri.value
+                                if (uri.isNotEmpty()) {
+                                    val inputStream = context.contentResolver.openInputStream(Uri.parse(uri))
+                                    val bytes = inputStream?.readBytes()
+                                    inputStream?.close()
+                                    bytes?.let { byteArray ->
+                                        bluetoothController.sendData(byteArray, selectedFileName.value)
+                                    }
+                                } else {
+                                    showErrorMessage("No se ha seleccionado ningún archivo", context)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text(text = "Enviar archivo")
+                        }
+                    }
 
-                    // Uri del archivo seleccionado
-                    Text(
-                        text = uriFile.value,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
                 }
             }
         }
     )
+}
+
+fun showErrorMessage(message: String, context: Context) {
+    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }

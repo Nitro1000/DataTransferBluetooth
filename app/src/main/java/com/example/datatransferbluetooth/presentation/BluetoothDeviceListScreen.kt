@@ -14,13 +14,17 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.datatransferbluetooth.BluetoothConnectionListener
 import com.example.datatransferbluetooth.BluetoothController
+import com.example.datatransferbluetooth.BluetoothDeviceModel
 
 @Composable
 fun BluetoothDeviceListScreen(
@@ -28,36 +32,44 @@ fun BluetoothDeviceListScreen(
     bluetoothController: BluetoothController,
     modifier: Modifier = Modifier,
     connectionListener: BluetoothConnectionListener
-)
-{
+) {
     val pairedDevices = bluetoothController.getPairedDevices()
-    val messageState = remember {
-        mutableStateOf("")
-    }
+    var selectedDevice: BluetoothDeviceModel? by remember { mutableStateOf(null) }
+    var connectionSuccessful by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            CustomAppBar(navigationIcon = Icons.Filled.ArrowBack){
-                navController.navigate(route = "main"){
+            CustomAppBar(
+                title = "Selecciona un dispositivo",
+                navigationIcon = Icons.Filled.ArrowBack
+            ) {
+                navController.navigate(route = "main") {
                     popUpTo(route = "main")
                 }
             }
         },
-        content = {padding ->
-            Surface(color= MaterialTheme.colors.background){
+        content = { padding ->
+            Surface(color = MaterialTheme.colors.background) {
                 Column(modifier = Modifier.padding(padding)) {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)){
-
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(pairedDevices) { device ->
                             Button(
                                 onClick = {
+                                    selectedDevice = device
                                     bluetoothController.connectToBluetoothDevice(
                                         device = device,
-                                        connectionListener = connectionListener
+                                        connectionListener = object : BluetoothConnectionListener {
+                                            override fun onConnectionSuccess() {
+                                                connectionSuccessful = true
+                                                connectionListener.onConnectionSuccess()
+                                            }
+
+                                            override fun onConnectionError() {
+                                                connectionSuccessful = false
+                                                connectionListener.onConnectionError()
+                                            }
+                                        }
                                     )
-                                    navController.navigate(route = "client/${device.address}/${device.name}"){
-                                        launchSingleTop=true
-                                    }
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -76,4 +88,12 @@ fun BluetoothDeviceListScreen(
             }
         }
     )
+
+    LaunchedEffect(connectionSuccessful) {
+        if (connectionSuccessful && selectedDevice != null) {
+            navController.navigate(route = "client/${selectedDevice!!.address}/${selectedDevice!!.name}") {
+                launchSingleTop = true
+            }
+        }
+    }
 }

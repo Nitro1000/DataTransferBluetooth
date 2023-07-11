@@ -16,6 +16,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.datatransferbluetooth.presentation.BluetoothDeviceListScreen
 import com.example.datatransferbluetooth.presentation.ClientScreen
 import com.example.datatransferbluetooth.presentation.MainScreen
+import com.example.datatransferbluetooth.presentation.ServerScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -57,8 +58,7 @@ class MainActivity : ComponentActivity() {
     private val bluetoothStateReceiver = object : BroadcastReceiver(){
         override fun onReceive(context: Context, intent: Intent){
             if (intent.action == BluetoothAdapter.ACTION_STATE_CHANGED){
-                val state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
-                when(state){
+                when(intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)){
                     BluetoothAdapter.STATE_OFF -> {
                         checkBluetoothAndRequestEnable()
                     }
@@ -151,6 +151,12 @@ class MainActivity : ComponentActivity() {
                             bluetoothController = bluetoothController
                         )
                     }
+                }
+                composable(route = "server") {
+                    ServerScreen(
+                        navController = navController,
+                        bluetoothController = bluetoothController
+                    )
                 }
             }
         }

@@ -22,7 +22,7 @@ fun MainScreen(navController: NavHostController, bluetoothController: BluetoothC
     DataTransferBluetoothTheme {
         Scaffold(
             topBar = {
-                CustomAppBar(title = "Aplicación Bluetooth")
+                CustomAppBar(title = "Selecciona una opción")
             },
             content = { padding ->
 
@@ -47,11 +47,15 @@ fun MainScreen(navController: NavHostController, bluetoothController: BluetoothC
                                 disabledElevation = 0.dp
                             )
                         ) {
-                            Text(text = "Mostrar dispositivos vinculados")
+                            Text(text = "Enviar archivos")
                         }
                         Button(
                             onClick = {
-                                bluetoothController.startBluetoothServer()
+                                navController.navigate(
+                                    route = "server"
+                                ){
+                                    launchSingleTop=true
+                                }
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,
@@ -65,25 +69,7 @@ fun MainScreen(navController: NavHostController, bluetoothController: BluetoothC
                                 disabledElevation = 0.dp
                             )
                         ){
-                            Text(text = "Iniciar Servidor")
-                        }
-                        Button(
-                            onClick = {
-                                bluetoothController.closeConnection()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            colors = ButtonDefaults.buttonColors(
-                                backgroundColor = MaterialTheme.colors.secondary,
-                                contentColor = Color.White
-                            ),
-                            elevation = ButtonDefaults.elevation(
-                                defaultElevation = 6.dp,
-                                pressedElevation = 8.dp,
-                                disabledElevation = 0.dp
-                            )
-                        ){
-                            Text(text = "Cerrar la conexión")
+                            Text(text = "Recibir archivos")
                         }
                     }
 

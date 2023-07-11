@@ -14,15 +14,6 @@ import java.nio.ByteBuffer
 import java.util.UUID
 import kotlin.math.min
 
-interface BluetoothConnectionListener {
-    fun onConnectionSuccess()
-    fun onConnectionError()
-}
-
-// interfaz de escucha de datos Bluetooth
-interface BluetoothDataListener {
-    fun onDataReceived(data: String)
-}
 
 @SuppressLint("MissingPermission")
 class BluetoothController(
@@ -49,10 +40,13 @@ class BluetoothController(
     // propiedad de escucha de datos Bluetooth
     private var bluetoothDataListener: BluetoothDataListener? = null
 
+    var connectedServer = false
+
+    var connectedClient = false
+
 
     init {
         updatePairedDevices()
-
     }
 
     // método para actualizar la lista de dispositivos Bluetooth emparejados.
@@ -83,13 +77,13 @@ class BluetoothController(
                     bluetoothServerSocket?.close()
                     bluetoothServerSocket = null
                     bluetoothClientSocket = socket
+                    connectedServer = true
                     shouldLoop = false
                     Toast.makeText(context, "Conexión con cliente establecida", Toast.LENGTH_SHORT).show()
                 }
 
                 // Hilo para escuchar los mensajes entrantes del cliente
                 Thread {
-                    val bufferSize = 4096 // Tamaño del buffer en bytes
                     while (true) {
                         try {
                             // Leer el tamaño nombre del archivo
@@ -107,16 +101,16 @@ class BluetoothController(
                             val fileSize = ByteBuffer.wrap(fileSizeBuffer).int
                             var bytes: Int
                             var remainingBytes = fileSize
-                            val fileBuffer = ByteArray(size = bufferSize)
+                            val fileBuffer = ByteArray(size = BUFFER_SIZE)
                             while (remainingBytes > 0){
-                                bytes = bluetoothClientSocket?.inputStream?.read(fileBuffer,0,min(remainingBytes,bufferSize)) ?: -1
-                                    if (bytes == -1) {
+                                bytes = bluetoothClientSocket?.inputStream?.read(fileBuffer,0,min(remainingBytes,BUFFER_SIZE)) ?: -1;
+
+                                if (bytes == -1) {
                                     break
                                 }
                                 remainingBytes -= bytes
                                 // Construir y guardar el archivo con los datos recibidos
                                 saveFile(context, fileBuffer, fileName, bytes)
-//                                saveFile(context, decryptedData, fileName, decryptedData.size)
                             }
                         } catch (e: IOException) {
                             // Error al leer los datos
@@ -139,11 +133,12 @@ class BluetoothController(
         bluetoothClientSocket = bluetoothAdapter
             ?.getRemoteDevice(device.address)
             ?.createRfcommSocketToServiceRecord(
-            UUID.fromString(SERVICE_UUID)
-        )
+                UUID.fromString(SERVICE_UUID)
+            )
         bluetoothClientSocket?.let { socket ->
             try {
                 socket.connect()
+                connectedClient = true
                 connectionListener.onConnectionSuccess()
             } catch (e: IOException) {
                 socket.close()
@@ -193,7 +188,7 @@ class BluetoothController(
         val externalFilesDir = context.getExternalFilesDir(null)
 
         // Crear un directorio llamado 'archivos_ejemplos' si no existe
-        val fileDir = File(externalFilesDir, "archivos_ejemplos")
+        val fileDir = File(externalFilesDir, "Archivos_Recibidos")
         if (!fileDir.exists()) {
             fileDir.mkdirs()
         }
@@ -201,20 +196,14 @@ class BluetoothController(
         // Crear un objeto File con la ruta del directorio y el nombre del archivo
         val file = File(fileDir, fileName)
 
-        // Utilizar un FileOutputStream para escribir los datos en el archivo
-        val fileOutputStream = FileOutputStream(file, true)
-
         // Escribir los datos en el archivo
-        try {
+        FileOutputStream(file, true).use { fileOutputStream ->
             fileOutputStream.write(data, 0, bytes)
-        } catch (e: IOException) {
-            Log.e("Bluetooth", "Error al escribir los datos en saveFile", e)
-        } finally {
-            fileOutputStream.close()
         }
     }
 
     companion object{
         const val SERVICE_UUID = "caf59de6-8089-4fd5-9836-768a63fd2281"
+        const val BUFFER_SIZE = 4096
     }
 }
