@@ -40,10 +40,6 @@ class BluetoothController(
     // propiedad de escucha de datos Bluetooth
     private var bluetoothDataListener: BluetoothDataListener? = null
 
-    var connectedServer = false
-
-    var connectedClient = false
-
 
     init {
         updatePairedDevices()
@@ -77,7 +73,6 @@ class BluetoothController(
                     bluetoothServerSocket?.close()
                     bluetoothServerSocket = null
                     bluetoothClientSocket = socket
-                    connectedServer = true
                     shouldLoop = false
                     Toast.makeText(context, "Conexión con cliente establecida", Toast.LENGTH_SHORT).show()
                 }
@@ -138,7 +133,6 @@ class BluetoothController(
         bluetoothClientSocket?.let { socket ->
             try {
                 socket.connect()
-                connectedClient = true
                 connectionListener.onConnectionSuccess()
             } catch (e: IOException) {
                 socket.close()
