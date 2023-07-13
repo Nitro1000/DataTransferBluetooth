@@ -49,7 +49,7 @@ fun BluetoothDeviceListScreen(
             }
         },
         content = { padding ->
-            Surface(color = MaterialTheme.colors.background) {
+            Surface(color = MaterialTheme.colors.background, modifier = modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(padding)) {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(pairedDevices) { device ->

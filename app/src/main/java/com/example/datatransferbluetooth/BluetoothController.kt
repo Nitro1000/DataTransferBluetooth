@@ -26,7 +26,7 @@ class BluetoothController(
         context.getSystemService(BluetoothManager::class.java)
     }
     // obtener una instancia del adaptador Bluetooth
-    val bluetoothAdapter by lazy {
+    private val bluetoothAdapter by lazy {
         bluetoothManager?.adapter
     }
 

@@ -16,7 +16,7 @@ typealias NavigationAction=()->Unit
 fun CustomAppBar(title:String?=null,
                  navigationIcon: ImageVector?=null,
                  navigationAction:NavigationAction?=null) {
-    val titleText=title ?: "Aplicación Bluetooth"
+    val titleText=title ?: "BlueShare"
     if (navigationIcon!=null&&navigationAction!=null){
         TopAppBar(
             title = { Text(titleText) },
