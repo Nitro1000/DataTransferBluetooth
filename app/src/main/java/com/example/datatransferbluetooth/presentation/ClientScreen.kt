@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.datatransferbluetooth.BluetoothController
-import com.example.datatransferbluetooth.BluetoothDeviceModel
+import com.example.datatransferbluetooth.Models.BluetoothDeviceModel
 
 
 @OptIn(ExperimentalMaterial3Api::class)

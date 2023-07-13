@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.datatransferbluetooth.Models.BluetoothDeviceModel
 import com.example.datatransferbluetooth.presentation.BluetoothDeviceListScreen
 import com.example.datatransferbluetooth.presentation.ClientScreen
 import com.example.datatransferbluetooth.presentation.MainScreen

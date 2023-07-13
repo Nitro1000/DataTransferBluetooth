@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.datatransferbluetooth.BluetoothConnectionListener
 import com.example.datatransferbluetooth.BluetoothController
-import com.example.datatransferbluetooth.BluetoothDeviceModel
+import com.example.datatransferbluetooth.Models.BluetoothDeviceModel
 
 @Composable
 fun BluetoothDeviceListScreen(

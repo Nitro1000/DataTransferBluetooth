@@ -1,4 +1,4 @@
-package com.example.datatransferbluetooth
+package com.example.datatransferbluetooth.Models
 
 data class BluetoothDeviceModel(
     val name: String?,

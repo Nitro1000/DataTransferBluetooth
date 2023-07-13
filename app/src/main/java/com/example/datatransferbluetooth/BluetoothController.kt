@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothSocket
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import com.example.datatransferbluetooth.Models.BluetoothDeviceModel
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
