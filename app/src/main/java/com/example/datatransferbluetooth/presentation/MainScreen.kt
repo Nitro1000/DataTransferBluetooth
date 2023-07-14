@@ -29,6 +29,7 @@ fun MainScreen(navController: NavHostController, bluetoothController: BluetoothC
                 Surface(color = MaterialTheme.colors.background) {
                     Column(modifier = Modifier.padding(padding)) {
                         Button(onClick = {
+                            bluetoothController.updatePairedDevices()
                             navController.navigate(
                                 route = "pairedDevices"
                                 ){

@@ -60,57 +60,41 @@ class BluetoothController(
     private var bluetoothDataListener: BluetoothDataListener? = null
 
     // par de claves cliente
-    val aliceKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
+    val serverKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
 
     // par de claves servidor
-    val bobKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
+    val clientKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
 
-    val aliceKeyPair: KeyPair
+    val serverKeyPair: KeyPair
 
-    val bobKeyPair: KeyPair
+    val clientKeyPair: KeyPair
 
-    var alicePrivateKey: PrivateKey
+    var serverPrivateKey: PrivateKey
 
-    var bobPublicKey: PublicKey
+    var clientPublicKey: PublicKey
 
-    var sharedSecretAlice: ByteArray? = null
+    var sharedSecretserver: ByteArray? = null
 
-    var sharedSecretBob: ByteArray? = null
+    var sharedSecretclient: ByteArray? = null
 
-    var bobPrivateKey: PrivateKey
+    var clientPrivateKey: PrivateKey
 
-    var alicePublicKey: PublicKey
-//
-//    var bobKeyAgreement: KeyAgreement
-//
-//    var aliceKeyAgreement: KeyAgreement
-
-    var keyset128:  List<Byte> = emptyList()
+    var serverPublicKey: PublicKey
 
     var aead: AesGcmJce? = null
 
     init {
-        aliceKpg.initialize(256) // Key size in bits
-        aliceKeyPair = aliceKpg.generateKeyPair()
+        serverKpg.initialize(256) 
+        serverKeyPair = serverKpg.generateKeyPair()
 
-        bobKpg.initialize(256) // Key size in bits
-        bobKeyPair = bobKpg.generateKeyPair()
+        clientKpg.initialize(256)
+        clientKeyPair = clientKpg.generateKeyPair()
 
-        // Alice's private key and Bob's public key
-        alicePrivateKey = aliceKeyPair.private
-        bobPublicKey = bobKeyPair.public
+        serverPrivateKey = serverKeyPair.private
+        clientPublicKey = clientKeyPair.public
 
-        // Bob performs the key agreement
-        bobPrivateKey= bobKeyPair.private
-        alicePublicKey= aliceKeyPair.public
-
-//        // cliente realiza el acuerdo de claves
-//        bobKeyAgreement = KeyAgreement.getInstance("ECDH")
-//        bobKeyAgreement.init(bobPrivateKey)
-//
-//        // servidor realiza el acuerdo de claves
-//        aliceKeyAgreement = KeyAgreement.getInstance("ECDH")
-//        aliceKeyAgreement.init(alicePrivateKey)
+        clientPrivateKey= clientKeyPair.private
+        serverPublicKey= serverKeyPair.public
 
         AeadConfig.register()
 
@@ -118,7 +102,7 @@ class BluetoothController(
     }
 
     // método para actualizar la lista de dispositivos Bluetooth emparejados.
-    private fun updatePairedDevices() {
+    fun updatePairedDevices() {
         pairedDevices = bluetoothAdapter?.bondedDevices?.map {
             BluetoothDeviceModel(
                 name = it.name,
@@ -147,80 +131,36 @@ class BluetoothController(
                     bluetoothServerSocket = null
                     bluetoothClientSocket = socket
                     bluetoothClientSocket?.outputStream?.apply {
-                        // Recibir la clave publica del cliente (bob)
-                        // 1. Leer el tamaño de la clave publica
-                        val bobPublicKeySizeBuffer = ByteArray(4)
-                        bluetoothClientSocket?.inputStream?.read(bobPublicKeySizeBuffer)
-                        // 2. Leer la clave publica
-                        val bobPublicKeyBuffer = ByteArray(ByteBuffer.wrap(bobPublicKeySizeBuffer).int)
-                        bluetoothClientSocket?.inputStream?.read(bobPublicKeyBuffer)
-                        // mostrar la clave publica del cliente
-//                        Log.d("Bob's public key servidor", bobPublicKeyBuffer.contentToString())
-                        // pasar la clave publica del cliente bobPublicKeyBuffer a un objeto java.security.Key
+                        val clientPublicKeySizeBuffer = ByteArray(4)
+                        bluetoothClientSocket?.inputStream?.read(clientPublicKeySizeBuffer)
+
+                        val clientPublicKeyBuffer = ByteArray(ByteBuffer.wrap(clientPublicKeySizeBuffer).int)
+                        bluetoothClientSocket?.inputStream?.read(clientPublicKeyBuffer)
+
                         val keyFactory = KeyFactory.getInstance("EC")
-                        val bobPublicKeySpec = X509EncodedKeySpec(bobPublicKeyBuffer)
-                        bobPublicKey = keyFactory.generatePublic(bobPublicKeySpec)
-                        // Alice performs the key agreement
-                        val aliceKeyAgreement: KeyAgreement = KeyAgreement.getInstance("ECDH")
-                        aliceKeyAgreement.init(alicePrivateKey)
-                        aliceKeyAgreement.doPhase(bobPublicKey, true)
-                        // Generar la clave secreta compartida
-                        sharedSecretAlice= aliceKeyAgreement.generateSecret()
-                        // Mostrar la clave secreta compartida
-//                        Log.d("Alice's shared secret", sharedSecretAlice?.contentToString() ?: "null")
+                        val clientPublicKeySpec = X509EncodedKeySpec(clientPublicKeyBuffer)
+                        clientPublicKey = keyFactory.generatePublic(clientPublicKeySpec)
 
-                        // Enviar la clave pública de Alice al Cliente (Bob)
-                        // 1. Enviar el tamaño de la clave publica
-                        val alicePublicKeySizeBuffer = ByteBuffer.allocate(4).putInt(alicePublicKey.encoded.size).array()
-                        bluetoothClientSocket?.outputStream?.write(alicePublicKeySizeBuffer)
-                        // 2. Enviar la clave publica
-                        bluetoothClientSocket?.outputStream?.write(alicePublicKey.encoded)
-                        // Mostrar la clave publica de Alice
-//                        Log.d("Alice's public key servidor", alicePublicKey.encoded.contentToString())
+                        val serverKeyAgreement: KeyAgreement = KeyAgreement.getInstance("ECDH")
+                        serverKeyAgreement.init(serverPrivateKey)
+                        serverKeyAgreement.doPhase(clientPublicKey, true)
 
-                        // 1. Divide by two the shared secret to have a 128 bit key
-                        val aliceSharedSecret128 = sharedSecretAlice?.sliceArray(0 until 16)
-                        // mostrar la clave secreta compartida
-                        Log.d("Alice's shared secret 128", aliceSharedSecret128?.contentToString() ?: "null")
-                        aead = AesGcmJce(aliceSharedSecret128)
-                        // mostrar aead
-                        Log.d("aead servidor", aead.toString())
+                        sharedSecretserver= serverKeyAgreement.generateSecret()
+
+                        val serverPublicKeySizeBuffer = ByteBuffer.allocate(4).putInt(serverPublicKey.encoded.size).array()
+                        bluetoothClientSocket?.outputStream?.write(serverPublicKeySizeBuffer)
+
+                        bluetoothClientSocket?.outputStream?.write(serverPublicKey.encoded)
+
+                        val serverSharedSecret128 = sharedSecretserver?.sliceArray(0 until 16)
+
+                        aead = AesGcmJce(serverSharedSecret128)
+
 
                     }
                     shouldLoop = false
                     Toast.makeText(context, "Conexión con cliente establecida", Toast.LENGTH_SHORT).show()
                 }
-
-                /*Probando codigo del profesor*/
-/*
-
-
-
-                // Alice performs the key agreement
-                aliceKeyAgreement.doPhase(bobPublicKey, true)
-
-                // Generate shared secret
-                sharedSecretAlice= aliceKeyAgreement.generateSecret()
-
-                // Bob performs the key agreement
-                bobKeyAgreement.doPhase(alicePublicKey, true)
-
-                // Generate shared secret
-                sharedSecretBob= bobKeyAgreement.generateSecret()
-
-                // Mostrar ambas claves compartidas
-                Log.d("Alice's shared secret", sharedSecretAlice?.contentToString() ?: "null")
-                Log.d("Bob's shared secret", sharedSecretBob?.contentToString() ?: "null")
-
-                // 1. Divide by two the shared secret to have a 128 bit key
-                val aliceSharedSecret128 = sharedSecretAlice?.sliceArray(0 until 16)
-                aead = AesGcmJce(aliceSharedSecret128)
-
-*/
-
-
-                /*Termina el codigo del profesor*/
-
 
                 // Hilo para escuchar los mensajes entrantes del cliente
                 Thread {
@@ -243,27 +183,27 @@ class BluetoothController(
                             var bytes: Int
                             var remainingBytes = fileSize
                             val fileBuffer = ByteArray(size = bufferSize)
+                            val allFileData: ArrayList<Byte> = ArrayList()
                             while (remainingBytes > 0){
                                 bytes = bluetoothClientSocket?.inputStream?.read(fileBuffer,0,min(remainingBytes,bufferSize)) ?: -1
-                                // Mostrar los datos recibidos
-                                Log.d("Bluetooth fileBuffer", "Datos recibidos: ${fileBuffer.contentToString()}")
-                                // Si no se reciben datos, salir del bucle
+
                                 if (bytes == -1) {
                                     break
                                 }
                                 remainingBytes -= bytes
-                                // Desencriptar los datos recibidos
-                                val plaintext = aead?.decrypt(fileBuffer, null)
-                                // Mostrar los datos desencriptados
-                                Log.d("Bluetooth plaintext", "Datos desencriptados: ${plaintext?.contentToString()}")
-
-                                // Construir y guardar el archivo con los datos recibidos
-                                if (plaintext != null) {
-                                    saveFile(context, plaintext, fileName, bytes)
-                                } else {
-                                    Log.e("Bluetooth", "Error al desencriptar los datos en startBluetoothServer")
+                                // Guardar los datos recibidos
+                                for (i in 0 until bytes) {
+                                    allFileData.add(fileBuffer[i])
                                 }
-//                                saveFile(context, ciphertext, fileName, ciphertext.size)
+                            }
+                            // Cuando ya no queda nada por leer, es momento de descifrar los datos.
+                            val fileDataAsArray = allFileData.toByteArray()
+                            val plaintext = aead?.decrypt(fileDataAsArray, null)
+
+                            if (plaintext != null) {
+                                saveFile(context, plaintext, fileName)
+                            } else {
+                                Log.e("Bluetooth", "Error al desencriptar los datos en startBluetoothServer")
                             }
                         } catch (e: IOException) {
                             // Error al leer los datos
@@ -292,69 +232,32 @@ class BluetoothController(
             try {
                 socket.connect()
 
-                // Enviar la clave pública de Bob al servidor (alice)
-                // 1. Sacar el tamaño de la clave pública de Bob
-                val bobPublicKeySizeBuffer = ByteBuffer.allocate(4).putInt(bobPublicKey?.encoded?.size ?: 0).array()
-                // 2. Sacar la clave pública de Bob
-                val bobPublicKeyBuffer = bobPublicKey?.encoded ?: ByteArray(0)
-                // 3. Enviar el tamaño de la clave pública de Bob
-                socket.outputStream.write(bobPublicKeySizeBuffer)
-                // 4. Enviar la clave pública de Bob
-                socket.outputStream.write(bobPublicKeyBuffer)
 
-                // mostrar la clave publica de bob
-//                Log.d("Bob's public key cliente", bobPublicKeyBuffer.contentToString())
+                val clientPublicKeySizeBuffer = ByteBuffer.allocate(4).putInt(clientPublicKey.encoded?.size ?: 0).array()
 
-                //mostrar el clave publica de bob  bobPublicKey
-//                Log.d("Bob's public key cliente bobPublicKey", bobPublicKey?.encoded?.contentToString() ?: "null")
+                val clientPublicKeyBuffer = clientPublicKey.encoded ?: ByteArray(0)
 
-                // Recibir la clave pública de Alice
-                // 1. Sacar el tamaño de la clave pública de Alice
-                val alicePublicKeySizeBuffer = ByteArray(4)
-                socket.inputStream.read(alicePublicKeySizeBuffer)
-                val alicePublicKeySize = ByteBuffer.wrap(alicePublicKeySizeBuffer).int
-                // 2. Sacar la clave pública de Alice
-                val alicePublicKeyBuffer = ByteArray(alicePublicKeySize)
-                socket.inputStream.read(alicePublicKeyBuffer)
-                // mostrar la clave publica del servidor
-//                Log.d("Alice's public key cliente", alicePublicKeyBuffer.contentToString())
-                // 3. Generar la clave pública de Alice
-                // pasar la clave publica del cliente bobPublicKeyBuffer a un objeto java.security.Key
+                socket.outputStream.write(clientPublicKeySizeBuffer)
+
+                socket.outputStream.write(clientPublicKeyBuffer)
+
+
+                val serverPublicKeySizeBuffer = ByteArray(4)
+                socket.inputStream.read(serverPublicKeySizeBuffer)
+
+                val serverPublicKeySize = ByteBuffer.wrap(serverPublicKeySizeBuffer).int
+                val serverPublicKeyBuffer = ByteArray(serverPublicKeySize)
+                socket.inputStream.read(serverPublicKeyBuffer)
+
                 val keyFactory = KeyFactory.getInstance("EC")
-                val alicePublicKeySpec = X509EncodedKeySpec(alicePublicKeyBuffer)
-                alicePublicKey = keyFactory.generatePublic(alicePublicKeySpec)
-
-//                alicePublicKey = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(alicePublicKeyBuffer))
-                // Bob performs the key agreement
-                val bobKeyAgreement: KeyAgreement = KeyAgreement.getInstance("ECDH")
-                bobKeyAgreement.init(bobPrivateKey)
-                bobKeyAgreement.doPhase(alicePublicKey, true)
-//                bobKeyAgreement.doPhase(alicePublicKey, true)
-                // Generate shared secret
-                sharedSecretBob= bobKeyAgreement.generateSecret()
-                // Mostrar ambas claves compartidas
-//                Log.d("Bob's shared secret", sharedSecretBob?.contentToString() ?: "null")
-
-                // 1. Divide by two the shared secret to have a 128 bit key
-                val bobSharedSecret128 = sharedSecretBob?.sliceArray(0 until 16)
-                // mostrar la clave compartida de bob
-                Log.d("Bob's shared secret 128", bobSharedSecret128?.contentToString() ?: "null")
-                aead = AesGcmJce(bobSharedSecret128)
-                // mostrar aead
-                Log.d("aead cliente", aead.toString())
-
-                // cliente [36, -108, 92, -80, -19, -36, -109, 101, 96, 16, -34, 3, 115, 41, 78, -46, -69, 62, 109, -23, 101, -68, -51, 60, -111, -52, 31, 6, -123, -56, -28, -126]
-                // servidor [36, -108, 92, -80, -19, -36, -109, 101, 96, 16, -34, 3, 115, 41, 78, -46, -69, 62, 109, -23, 101, -68, -51, 60, -111, -52, 31, 6, -123, -56, -28, -126]
-
-
-
-                /**
-                 * val bobPublicKeyBytes = bobPublicKey?.encoded
-                socket.outputStream.write(ByteBuffer.allocate(4).putInt(bobPublicKeyBytes?.size ?: 0).array())
-                socket.outputStream.write(bobPublicKeyBytes ?: byteArrayOf())
-                 */
-
-
+                val serverPublicKeySpec = X509EncodedKeySpec(serverPublicKeyBuffer)
+                serverPublicKey = keyFactory.generatePublic(serverPublicKeySpec)
+                val clientKeyAgreement: KeyAgreement = KeyAgreement.getInstance("ECDH")
+                clientKeyAgreement.init(clientPrivateKey)
+                clientKeyAgreement.doPhase(serverPublicKey, true)
+                sharedSecretclient= clientKeyAgreement.generateSecret()
+                val clientSharedSecret128 = sharedSecretclient?.sliceArray(0 until 16)
+                aead = AesGcmJce(clientSharedSecret128)
 
 
                 connectionListener.onConnectionSuccess()
@@ -399,13 +302,7 @@ class BluetoothController(
                 write(ByteBuffer.allocate(4).putInt(ciphertext?.size ?: 0).array())
                 // Enviar el archivo cifrado
                 write(ciphertext ?: byteArrayOf())
-                // mostrar el archivo cifrado
-                Log.d("ciphertext cliente", ciphertext?.contentToString() ?: "null")
 
-                // Enviar el tamaño del archivo
-//                write(ByteBuffer.allocate(4).putInt(data.size).array())
-                // Enviar el archivo
-//                write(data)
             }
         } catch (e: IOException) {
             Log.e("Bluetooth", "Error al enviar los datos en sendData", e)
@@ -414,7 +311,7 @@ class BluetoothController(
 
 
     // Construir y guardar el archivo con los datos recibidos
-    private fun saveFile(context: Context, data: ByteArray, fileName: String, bytes: Int){
+    private fun saveFile(context: Context, data: ByteArray, fileName: String){
         // Obtener el directorio de almacenamiento externo de la aplicación
         val externalFilesDir = context.getExternalFilesDir(null)
 
@@ -432,7 +329,7 @@ class BluetoothController(
 
         // Escribir los datos en el archivo
         try {
-            fileOutputStream.write(data, 0, bytes)
+            fileOutputStream.write(data)
         } catch (e: IOException) {
             Log.e("Bluetooth", "Error al escribir los datos en saveFile", e)
         } finally {
