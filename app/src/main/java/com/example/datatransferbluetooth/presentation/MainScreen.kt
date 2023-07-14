@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -39,6 +38,7 @@ fun MainScreen(navController: NavHostController, bluetoothController: BluetoothC
                         verticalArrangement = Arrangement.Center
                     ) {
                         Button(onClick = {
+                            bluetoothController.updatePairedDevices()
                             navController.navigate(
                                 route = "pairedDevices"
                             ){
