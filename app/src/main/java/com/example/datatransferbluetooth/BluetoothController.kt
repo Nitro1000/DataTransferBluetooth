@@ -51,28 +51,28 @@ class BluetoothController(
     private var bluetoothDataListener: BluetoothDataListener? = null
 
     // par de claves cliente
-    val serverKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
+    private val serverKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
 
     // par de claves servidor
-    val clientKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
+    private val clientKpg: KeyPairGenerator = KeyPairGenerator.getInstance("EC")
 
-    val serverKeyPair: KeyPair
+    private val serverKeyPair: KeyPair
 
-    val clientKeyPair: KeyPair
+    private val clientKeyPair: KeyPair
 
-    var serverPrivateKey: PrivateKey
+    private var serverPrivateKey: PrivateKey
 
-    var clientPublicKey: PublicKey
+    private var clientPublicKey: PublicKey
 
-    var sharedSecretserver: ByteArray? = null
+    private var sharedSecretserver: ByteArray? = null
 
-    var sharedSecretclient: ByteArray? = null
+    private var sharedSecretclient: ByteArray? = null
 
-    var clientPrivateKey: PrivateKey
+    private var clientPrivateKey: PrivateKey
 
-    var serverPublicKey: PublicKey
+    private var serverPublicKey: PublicKey
 
-    var aead: AesGcmJce? = null
+    private var aead: AesGcmJce? = null
 
     init {
         serverKpg.initialize(256)
@@ -242,13 +242,15 @@ class BluetoothController(
                 val keyFactory = KeyFactory.getInstance("EC")
                 val serverPublicKeySpec = X509EncodedKeySpec(serverPublicKeyBuffer)
                 serverPublicKey = keyFactory.generatePublic(serverPublicKeySpec)
+
                 val clientKeyAgreement: KeyAgreement = KeyAgreement.getInstance("ECDH")
                 clientKeyAgreement.init(clientPrivateKey)
                 clientKeyAgreement.doPhase(serverPublicKey, true)
-                sharedSecretclient= clientKeyAgreement.generateSecret()
-                val clientSharedSecret128 = sharedSecretclient?.sliceArray(0 until 16)
-                aead = AesGcmJce(clientSharedSecret128)
 
+                sharedSecretclient = clientKeyAgreement.generateSecret()
+                val clientSharedSecret128 = sharedSecretclient?.sliceArray(0 until 16)
+
+                aead = AesGcmJce(clientSharedSecret128)
 
                 connectionListener.onConnectionSuccess()
             } catch (e: IOException) {
