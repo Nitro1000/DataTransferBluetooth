@@ -21,11 +21,12 @@ import com.example.datatransferbluetooth.presentation.BluetoothDeviceListScreen
 import com.example.datatransferbluetooth.presentation.ClientScreen
 import com.example.datatransferbluetooth.presentation.MainScreen
 import com.example.datatransferbluetooth.presentation.ServerScreen
+import com.example.datatransferbluetooth.presentation.SplashScreen
 
 class MainActivity : ComponentActivity() {
 
     private val permissionRequestCode = 200
-    val requiredPermissions = arrayOf(
+    private val requiredPermissions = arrayOf(
         android.Manifest.permission.BLUETOOTH_CONNECT,
         android.Manifest.permission.BLUETOOTH_SCAN
     )
@@ -137,7 +138,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val navController = rememberNavController()
-            NavHost(navController = navController, startDestination = "main") {
+            NavHost(navController = navController, startDestination = "welcome") {
                 composable(route = "main") {
                     MainScreen(
                         navController = navController,
@@ -172,6 +173,11 @@ class MainActivity : ComponentActivity() {
                     ServerScreen(
                         navController = navController,
                         bluetoothController = bluetoothController
+                    )
+                }
+                composable(route = "welcome") {
+                    SplashScreen(
+                        navController = navController
                     )
                 }
             }
