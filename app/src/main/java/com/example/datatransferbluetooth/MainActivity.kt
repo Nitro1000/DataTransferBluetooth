@@ -200,8 +200,6 @@ class MainActivity : ComponentActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == permissionRequestCode) {
             if (grantResults.any { it == PackageManager.PERMISSION_DENIED }) {
-                // Si el usuario niega uno o más permisos, manejamos esta situación
-                // (mostramos un diálogo, cerramos la aplicación, etc).
                 AlertDialog.Builder(this)
                     .setTitle("Solicitud de permisos")
                     .setMessage("¿Acepta conceder los permisos requeridos para Bluetooth?")
