@@ -2,15 +2,13 @@ package com.example.datatransferbluetooth.presentation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.Button
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Surface
-import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
@@ -20,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.datatransferbluetooth.BluetoothConnectionListener
@@ -49,37 +48,29 @@ fun BluetoothDeviceListScreen(
             }
         },
         content = { padding ->
-            Surface(color = MaterialTheme.colors.background, modifier = modifier.fillMaxWidth()) {
+            Surface(color = Color(0xFFBCD7E5), modifier = modifier.fillMaxSize()) {
                 Column(modifier = Modifier.padding(padding)) {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(pairedDevices) { device ->
-                            Button(
-                                onClick = {
-                                    selectedDevice = device
-                                    bluetoothController.connectToBluetoothDevice(
-                                        device = device,
-                                        connectionListener = object : BluetoothConnectionListener {
-                                            override fun onConnectionSuccess() {
-                                                connectionSuccessful = true
-                                                connectionListener.onConnectionSuccess()
-                                            }
-
-                                            override fun onConnectionError() {
-                                                connectionSuccessful = false
-                                                connectionListener.onConnectionError()
-                                            }
-                                        }
-                                    )
-                                },
+                            CustomButton(text = device.name ?: "Desconocido",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(16.dp)
                             ) {
-                                Text(
-                                    text = device.name ?: "Desconocido",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
+                                selectedDevice = device
+                                bluetoothController.connectToBluetoothDevice(
+                                    device = device,
+                                    connectionListener = object : BluetoothConnectionListener {
+                                        override fun onConnectionSuccess() {
+                                            connectionSuccessful = true
+                                            connectionListener.onConnectionSuccess()
+                                        }
+
+                                        override fun onConnectionError() {
+                                            connectionSuccessful = false
+                                            connectionListener.onConnectionError()
+                                        }
+                                    }
                                 )
                             }
                         }

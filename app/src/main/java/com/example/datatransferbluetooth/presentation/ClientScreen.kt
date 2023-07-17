@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -53,7 +52,6 @@ fun ClientScreen(
                     selectedFileName.value = displayName
                 } else {
                     Toast.makeText(context, "No se pudo obtener el nombre del archivo", Toast.LENGTH_SHORT).show()
-                    null
                 }
             }
         }
@@ -87,34 +85,33 @@ fun ClientScreen(
                             .padding(16.dp)
                     )
 
-                    Button(
-                        onClick = { filePickerLauncher.launch("application/*") },
+                    CustomButton(
+                        text = "Seleccionar archivo",
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
-                    ) {
-                        Text(text = "Seleccionar archivo")
+                    ){
+                        filePickerLauncher.launch("application/*")
                     }
+
                     if (selectedFileUri.value.isNotEmpty()) {
-                        Button(
-                            onClick = {
-                                val uri = selectedFileUri.value
-                                if (uri.isNotEmpty()) {
-                                    val inputStream = context.contentResolver.openInputStream(Uri.parse(uri))
-                                    val bytes = inputStream?.readBytes()
-                                    inputStream?.close()
-                                    bytes?.let { byteArray ->
-                                        bluetoothController.sendData(byteArray, selectedFileName.value)
-                                    }
-                                } else {
-                                    showErrorMessage("No se ha seleccionado ningún archivo", context)
-                                }
-                            },
+                        CustomButton(
+                            text = "Enviar archivo",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp)
                         ) {
-                            Text(text = "Enviar archivo")
+                            val uri = selectedFileUri.value
+                            if (uri.isNotEmpty()) {
+                                val inputStream = context.contentResolver.openInputStream(Uri.parse(uri))
+                                val bytes = inputStream?.readBytes()
+                                inputStream?.close()
+                                bytes?.let { byteArray ->
+                                    bluetoothController.sendData(byteArray, selectedFileName.value)
+                                }
+                            } else {
+                                showErrorMessage("No se ha seleccionado ningún archivo", context)
+                            }
                         }
                     }
 
