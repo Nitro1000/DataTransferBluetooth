@@ -7,11 +7,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,6 +28,7 @@ import com.example.datatransferbluetooth.presentation.SplashScreen
 class MainActivity : ComponentActivity() {
 
     private val permissionRequestCode = 200
+    @RequiresApi(Build.VERSION_CODES.S)
     private val requiredPermissions = arrayOf(
         android.Manifest.permission.BLUETOOTH_CONNECT,
         android.Manifest.permission.BLUETOOTH_SCAN
@@ -85,6 +88,7 @@ class MainActivity : ComponentActivity() {
     }
 
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -124,10 +128,9 @@ class MainActivity : ComponentActivity() {
         val dataListener = object : BluetoothDataListener {
             override fun onDataReceived(data: String) {
                 runOnUiThread{
-                    // Se recibió un mensaje de datos
                     Toast.makeText(
                         this@MainActivity,
-                        "Mensaje recibido: $data",
+                        data,
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -192,6 +195,7 @@ class MainActivity : ComponentActivity() {
     }
 
     // Método para manejar la respuesta del usuario a la solicitud de permisos.
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,

@@ -320,6 +320,7 @@ class BluetoothController(
         // Escribir los datos en el archivo
         FileOutputStream(file, true).use { fileOutputStream ->
             fileOutputStream.write(data)
+            bluetoothDataListener?.onDataReceived("Recibido archivo: $fileName")
         }
     }
 
