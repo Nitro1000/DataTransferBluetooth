@@ -287,9 +287,6 @@ class BluetoothController(
                 // Enviar el nombre del archivo
                 write(fileName.toByteArray())
 
-                // mostrar data
-                Log.d("data cliente", data.contentToString())
-
                 val ciphertext = aead?.encrypt(data, null)
                 // Enviar el tamaño del archivo cifrado
                 write(ByteBuffer.allocate(4).putInt(ciphertext?.size ?: 0).array())
